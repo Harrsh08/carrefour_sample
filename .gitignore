@@ -1,8 +1,5 @@
 .env
-__pycache__/*
-PAGESAVE
-test.py
-*.xlsx
-*.csv
 *.txt
 *.json
+*.html
+
