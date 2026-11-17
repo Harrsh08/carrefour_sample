@@ -1,7 +1,10 @@
-import requests
 import json
-from db_script import CarrefourDB
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
+import requests
+
+from db_script import CarrefourDB
 
 url = "https://www.carrefouruae.com/api/v1/pdp/vouchers?latitude=25.2171003&longitude=55.3613635"
 
@@ -20,15 +23,15 @@ headers = {
   'lang': 'en',
   'langcode': 'en',
   'latitude': '25.2171003',
+  'loadbeaconspixel': 'true',
   'longitude': '55.3613635',
   'mw_sellerflex_enabled': 'true',
-  'newrelic': 'eyJ2IjpbMCwxXSwiZCI6eyJ0eSI6IkJyb3dzZXIiLCJhYyI6IjMzNTU3MjAiLCJhcCI6IjExMzQ2MDE0NDMiLCJpZCI6ImQ2N2E0MGE2NzNjNzgzMGEiLCJ0ciI6ImFmZThjMDk3Y2NhMGMzNjg5YzE3NGI4NjAzYWY0ZTEwIiwidGkiOjE3OTQ4MTc3NTUwNTl9fQ==',
+  'newrelic': 'eyJ2IjpbMCwxXSwiZCI6eyJ0eSI6IkJyb3dzZXIiLCJhYyI6IjMzNTU3MjAiLCJhcCI6IjExMzQ2MDE0NDMiLCJpZCI6IjEzZGE1MTFkMTdkNTcxNGYiLCJ0ciI6Ijg2NjdhYzJiOGYzZjUxMWY2YzU1ZTBlMzcxZjE4ZGI1IiwidGkiOjE3OTQ4ODIzOTUwNDh9fQ==',
   'origin': 'https://www.carrefouruae.com',
   'posinfo': 'nonfood=099_Zone01,BULK=072_Zone01,food=072_Zone01,QCOMM=072_Zone01,express=003_Zone01,QELEC=003_Zone01,QMKP=F04_Zone01,QMKP=F01_Zone04',
   'posinfo2': 'nonfood=099_Zone01,BULK=072_Zone01,food=072_Zone01,QCOMM=072_Zone01,express=003_Zone01,QELEC=003_Zone01,QMKP=F04_Zone01|F01_Zone04',
   'priority': 'u=1, i',
-  'producttype': 'ANY',
-  'referer': 'https://www.carrefouruae.com/mafuae/en/nail-polish-removers/broadway-n-pol-remov-s-berry-36b/p/1357771?offer=offer_carrefour_&sid=SLOTTED&sellerId=0000',
+  'referer': 'https://www.carrefouruae.com/mafuae/en/shampoos/pnt-suncare-sh-cd-dp-500/p/2292935',
   'sec-ch-ua': '"Not-A.Brand";v="99", "Google Chrome";v="157", "Chromium";v="157"',
   'sec-ch-ua-mobile': '?0',
   'sec-ch-ua-platform': '"Windows"',
@@ -37,8 +40,8 @@ headers = {
   'sec-fetch-site': 'same-origin',
   'servicetypes': 'SLOTTED|DEFAULT|MKP_GLOBAL|QMKP|QELEC|DIGITAL',
   'storeid': 'mafuae',
-  'traceparent': '00-afe8c097cca0c3689c174b8603af4e10-d67a40a673c7830a-01',
-  'tracestate': '3355720@nr=0-1-3355720-1134601443-d67a40a673c7830a----1794817755059',
+  'traceparent': '00-8667ac2b8f3f511f6c55e0e371f18db5-13da511d17d5714f-01',
+  'tracestate': '3355720@nr=0-1-3355720-1134601443-13da511d17d5714f----1794882395048',
   'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/157.0.0.0 Safari/537.36',
   'userid': 'anonymous',
   'x-maf-account': 'carrefour',
@@ -46,44 +49,81 @@ headers = {
   'x-maf-revamp': 'true',
   'x-maf-tenant': 'mafretail',
   'x-requested-with': 'XMLHttpRequest',
-  'Cookie': 'cart_api=v2; common.mw_sellerflex.enabled=true; __privaci_latest_published_version={"v":10,"sync":0,"kn":"","cid":0}; __privaci_cookie_consent_uuid=892b288d-b4ac-46ef-a2ce-3aba9ac8388f:4,05923948-9e4d-4706-8a48-e390632c991d:4; __privaci_cookie_consent_generated=05923948-9e4d-4706-8a48-e390632c991d:4; __privaci_cookie_consents={"ts":1793962667,"consents":{"249":1,"250":1,"251":1,"252":1},"location":"GJ#IN","lang":"en","gpcInBrowserOnConsent":false,"gpcStatusInPortalOnConsent":false,"status":"record-consent-success","implicit_consent":false,"ct":3,"gcm":{"1":1,"2":1,"3":1,"4":1,"5":1,"6":1,"7":1}}; posInfo=nonfood=099_Zone01,BULK=072_Zone01,food=072_Zone01,QCOMM=072_Zone01,express=003_Zone01,QELEC=003_Zone01,QMKP=F04_Zone01,QMKP=F01_Zone04; posInfo2=nonfood=099_Zone01,BULK=072_Zone01,food=072_Zone01,QCOMM=072_Zone01,express=003_Zone01,QELEC=003_Zone01,QMKP=F04_Zone01|F01_Zone04; emirate-code=DUBAI; selectedTabData={"selectedTabId":"80","productType":"ANY","serviceTypes":"SLOTTED|DEFAULT|MKP_GLOBAL|QMKP|QELEC|DIGITAL","pagePath":"New_homepage_standard_June_2025","pageType":"Homepage","pageId":"4044","pageUid":"Scheduled"}; tabInfo=SLOTTED|DEFAULT|MKP_GLOBAL|QMKP|QELEC|DIGITAL#ANY,EXPRESS|QELEC|QMKP|DIGITAL#ANY,QCOMM|DIGITAL#ANY,BULK#ANY; mafuae-preferred-delivery-area=DubaiFestivalCity-Dubai; maf-session-id=B0CEDE29-32FE-4D51-ACB8-B5E62BA13370; device-id=40ff88317e022fbb14c2dfba0ed9246f; future-express-delivery=false; bm_mi=18F2BE75BA3C6FAE1EF31EB73D47DE60~YAAQp/naF2ljfsihAQAAPwwe4wF23rYxB685tBh/Rhy4taHuzPhHy11PsKVSwzGGAeZH1vaeOH2g/x7xCff3EIHoD0XCyFKmIfSUVSC4qNSjHET68rRdvCRHN+LlEGpWlUu5r6CT8vj/wx09mJ9aBjzLJ/ZFn8w4uhZ/6HXUPf9dW5doAkgPjFxSE6iGEhbzBEsFVxvAITBlswQA3rdaPrFscTwlfsj0ASQ4RsrIAAZAVsPM/mKSLchqzq1QJnx+U3Ccss4rUg/B3s5I+StY6IZczUpNLkJ/qFWcChrCxw13TKmw1wGd2+nBQa49x3Orh30+zPyIPbYN3tRD32xGX1u9mfCBbrgT1cARxNB1tDyoEGy6XzzoAAN7B0QR410buXCfQgeWMKZkzLIgzg==~1; bm_sv=045A92DDD4FDC90388BE6AED1B49A4D1~YAAQp/naF2xjfsihAQAAPwwe4wGvgEpaAq6JcIPfpUIxr/b7MiAEqegn3ysraWUVXXWSe0xTUrzTpwKdOVjnHBJsyIjewdXN7PfVe/fg8lnklmNQejc3GgHAeov/Etap4hg/veVn6mZ0EVA2tQcnAX56CiJ6J037V3mON2Bp9FOZ3RCLTXitqCn2rxhIBWa3Ng8tLmOXx6U69WeDeQHCWMg2KpWaP46uJmJD21ZHYkVx32/8M4V0vyLLIwiF5K8Z1/emdtyO~1; ak_bmsc=D495AA7F5416EE402C66C73C7A0CD823~000000000000000000000000000000~YAAQp/naF6yKfsihAQAAlIEe4wEEdoEikCKOjB8egVhDVkLzYuXc3AW+OPLPn9USE4GYMB+MmP2sekW61mTIEJcbg+nPjyhOAAoe6G2KIIBKPqrsKaVa/F8f1L+lymvvsEp2nmDj25UqulSTmfWmzBNaBpqrK3iYh2SV+jzRminE7gqgkclgcTnvWDBXoOezS73P8UFfo3TO/ENZkKvXER9BFKc4FWiToyd8xRez2SyCvMyKGrsFueiAWrJ+qw00tAyPVjkHCZHevZnB+VY0SMBJIc+CybLcw2O06O/kE2tivve/EBEKgLYBnoXj7Es8wszSAaC+H7GNCRIv47nX/SlacJuG+lvLjqnyK/v2HJsNgDye/5XA3FQSRahYe4xesoSxLrnKV0VdGA6snXnAgSdLUpMXBQwnuO7DJHp8AY/BdevIsNcPjX8D7eVTS1OfivK9mRSP3YFr0ys92xZ96OLVJh+lB7sqDOuWRtckXm4ADwgNHho=; gtoken=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6IjI1NmI4NjFjNDc1MzljZWZiNjg5NTY0YTdjYTc2NmVkIn0.eyJpc3MiOiJodHRwczovL2F1dGgtbWFuYWdlci5tYWZyc2VydmljZXMuY29tIiwic3ViIjoiZ3Vlc3R8N2U4ZWM3MTNmNWJjYmQ3NDRiNzVmMmViYmUwNDI3NTkiLCJhdWQiOiJ1cm46bWFmOnJlc291cmNlOnBsYXRmb3JtIiwidWlkIjoiN2U4ZWM3MTNmNWJjYmQ3NDRiNzVmMmViYmUwNDI3NTkiLCJqdGkiOiJhMmY5OGY0Zi0wYjI3LTRjZDItODM1Zi0wNDEyODVjMDBmZWMiLCJpYXQiOjE3OTQ4MTYxNzEsImV4cCI6MTc5NDgxOTc3MX0.nGZawmJW3VVSWTr_hlMFmCKY9ZlMO7cEd86U2_OOoHaG5CGeni0Nz3hvXoGkMV3hyJ0iaWZG7hpAtgqdoBj9QERzQ99710UNwRLHrCXiJ_GbxZJXrPsdmh_Ta3Lrgj7N1AE5iHynTUNplkwrx-sJkyaBc1As7gkYRsgJlV9Pfiegti7UH4wSMEkNrD02FtFOkJEBNrZL4pYps2ihCe0hvCDdforfXg7OYc8Dck6Wgb_TrRZhgKGauqjOb85oM31bh1aaYZkIPaK2E2VWLQqgP_3nbmw7ZSeuVT8o6nooB9F-czgdq_mB_-PCuGhs8QYVYEc0guhE4LngAk8L-5c_UA; guid=7e8ec713f5bcbd744b75f2ebbe042759; AKA_A2=A; JSESSIONID=D901A9AE0DF1F3A9B6980613821D7C4A; storeInfo=mafuae|en|AED; bm_s=YAAQp/naF7nilMihAQAAuHR54wbyZmDgp/pAaRiU0oKqMcJDyXwJQJc2JVOAFxoQLkSWZsOtLUgRxdhQKHUJ1mthxzmeE/AMR6xW4fPBKW26gl3WobOzR8zASUJ5ZJui5Qv9/OtVP8ySnrO/t1Zyo1u7flRkv5L5nTsg9jrGLPyHVs9iWBEHHW7TzpFcWY+tu1y9UXfqWhpopUYUS0P/q/IxZMqtvFf9j5ayHl+Tbi3uV2NZ7+J5gqtdpvP58qtxlIUGGWjRshGH44s/cvlouUl4eljhAqMCsdc6dPa2D0mAQdBHm6dJJjeGb1gTqz1izZiQUjkM8v2BMdfjNfgZGWpKrk9sN6jT7Qpz8FJ2DaPj3WT1kfK3nns3FQe+XIQL1d8LVxWSu8j+Dd4aMuCxYLTbRFEyFQnSEOOMnHZZKjlZx4DEdzPw5fKnfyTFqQqf1NLp6tICSEXsvSatcfH05C4B9q6Vdqj48j5+fYuQvCHNx3/+zzhfAFZvbFXGE86zrwh2OZqdLIhVoqDv4JuYXjuiIYW5gOWztF81XIFY/Prsg9X+bZiWs/2MEuDUryYmpRKok7O/JmB/iXi6U8vpusMqKVsfBCJHP+M5k9eTfQVPcisQ29khYeY9o1BkJq7MX4udibm1StnUarvmcHalQBrrqVFBQ68yiOwEirfTa2ZA3rg9ZOhrt5heA92oDEd1aHTfvQDYeoIOR1es2xkCPcmF2O6JKClCyWcSK9ul9PfsFQYFgRdL6I+oi4Xe6o+9I+wiUugBJ+XcOX9EuHqtdA2QPMD6C5QHCMQ7V2ekDBussQHFbpWJJc16EDm4LjBn6ObCl1/yKcAXbPbYvg3eCUjB+4sWIcG2m6v1002KOSyIw2NzJOIj4kRsyM0EBvE785kmsfef8Ea/bn4y9YLf/msNmcY7rmwFvVs0rjz3Br5NwuSB3WN2wSuf56gkPJ75QxDOQldoN8t7UAxM5Qpr5RvHigrBY9ivnFfBrlKNTZbjlprvcvmjpHaPR8U6bYd3v9P/jfmpxHfmBKBHZ9rIWr1J0byhVCnUV5qsuGDyC3S0maEE3zaAcJuyAYAmvO8xgF+Ge0OZGLsILvIMtcU3Rb4l6onD3YS594sJUE0p2zyiWtXARL3XYdejEZKQAn99+4XdRQmxtA==; bm_so=9BBD76E52EA2D2947CC4FFB91D23FF273B500A8137E1C24504971C1F6224EFE6~YAAQp/naF7rilMihAQAAuHR54wk4vOXh6KxslwfZnlrJXROYHLiMB02pEp3ruqOIMrz7sw7gu07dJo+KrUjh8Lpw4gZ2RRGab0DBWoBp9ExBN3WtcENJF88O1IjwRwK9lLjvP8uJ9yNGZEDH1H+fc+MsUO4jThMJgbPRevUuEYx7eaqJmrWfZpNg1Pxemx1KkHQ6AYQVNQm6iOEofkdlMp4qlBwJYyZ7v9Px70Vv3SVCF4ny8/NQmxYnQ71sYApYBMasrf4uBCRUv8VhAWD6m7JjU4TsA16DGi6qDGrvg/ung/T/aMd7AwGC18QfNY++HaGXZ27BwWEpIuAAs6DVg6B+fzKoRblfob/5y3IbAYf98m1mEGBwOhxIXO1LeiceTU0UIyVnwuffH3zHHc8A7Pp4j1NcLS3hKmdD0GZiOQB38eml2Xrkpzrk5fXO3z8U4CkpnR2Ch9xiE2i872Z/O30ae/fGJ2vHXWac0Cqff8aT~3; bm_sz=A465F5E9CAA1AAA0A9F937EF00C5166C~YAAQp/naF7vilMihAQAAuHR54wG1C8h5/HO0WfIxfw06QLI5KZSW3nEy0jUWU9diSP8c3Gho/k5Zi5TriQDuLEvqM13AvLuUVesatCBlp2dQDOB2w8cW5lHLNoK2KUNr3d7p1P6cgFLrGAaFHGSyogImvPDkxoCCrsaPCtc44UIdyued/q0MA8mCgjTpD1C0CNRqRT+V607hEd9ozHBOoj0lhhagNS1EBVKePSuke7N3fxxuwwUelBRyaMpX9K86f1D0o+Usx622O35I1RAzp7Sk/CKewRPJPgpVk7wPMR00aK6l6/gc2qq7QVLuS24ZkcORjWsMk6DIbfmLZ3laC48iEadBNkccaAPFGpsE8+VVtH3ZQCaMFrjkoJgfRD4PGen+qQMaw2W+CAgftLt1OII5F7WHCoy0XjAd7iGZ/roRK1SsqctBQCg+4o/cjT1Bq81jsx1V5T/m8d4TaA5OaZbjczvaykbUCTdpF1Qf6u3BVospxDKiaeMDeTpGBIEzJpBA9xyCpga54t/e1iUh4fodG8Onr8OVukR7VdER+rCtK13+BwYn3zCWinQbyf594db4jrf6gqORqJ8=~3356738~3228982; _abck=20E3EEE906C4D4CF4C197A940EF9E3DE~0~YAAQp/naFxHjlMihAQAAG3Z54xD1le4LADl9b9FNedNpWPxMDUSR6mjNrDy4g+awJcgQmXRDGHB8a/Za7Zzcxc4+c7l09XHyr0CHiTwsKbRfE3WKQwheZwISQLbYdcFOLjEplVII3bf4KhLZ12GrlKyGeVsJ6mwCh9PeYMM7kEcPmhb136uQdaKFEy6bRnJUH3p9SDrh7E4BwCntI6zwxi6XAyzS/hmwRqwIqBm9ngiD5jl9nFLlhd5aIq9Pc7gVLLoGvw9blGLMgYTUMxWnAevY3l3VbcSVd4a60CRVZdHpGcFdEoN9BKjvaTUYjBLFLIgnat9gTwqY+EHVr/mSHg0TPiD5r+QxL0rWz4DwUZKodj91hhxsJRKE6cLbNU8DW0lhPGo/y1K//9Zi+dryjZLvtmiNFxS1htcZH+9wRYvkixyimJJdLC7OxrMDIcg1pBjg9mvSUHQ20Iuc/uT0fUmAfy61Xg07u14SUkVlLdzFUcOhkYT9wLzRAlgdoEVwZ4gDAFH+C1s0W7BgL5FtkKql4wL+dPr5sXs15L/F3QW2V4KZX5oZqYVUhCHKXK8MuBCorDcKDCP1sFxf6lkfXNrXtSQoXE54S2V8h+0rrYRLcPfoYsWHECnew92616IhzjTxOm7cEGx+fP2OpYhP/ymuTHeAaHtUEBJtqa66TEhrM75joCc/GzDGBhsqMerNW7xxGmwNJVR/iid1erRNY/HsIdEpzHH249qpMC63ahIGVWAStsW3NpRYdthKo/vUaNiRzFVcpiWWoKQ0pfJCpu5S6TXoQ5pldNktTPDSiDLsD5uLN+BdOxyovY9aC0PNNGTMgscRa6FSrvfNlstXgX2OKWGS0OxkJmo7Jd5ewSUajRIgQve6/GhsrGsYmSXltqEkd9Ix16pVb/nqM/WpYvT6O2b4ks5tkV9U2c8LWxAnX7VcLTTeo3ywgwrDZ9Bkfbhj2Q2oaNWLnElBikhhXeoLx/BTjsyCMcQvM2ClgBbfGU5hI8JAHio5Lc9+HgcUn93GrqEN0TmnhZ+EgBbVoFnRVHO69bGgD7k35Tu/PaAAQuyRmEVmDeCyWd/Hnfv+VTGQ0+EJ/d4eCbuYIHYqv5JbOm+MHNM=~-1~-1~-1~AAQAAAAG%2f%2f%2f%2f%2f7hQlh66QRCAAUzzlQtjplZXQaigveKT7M6U3Q+6267iIfx72aIyDNOAD8NA+2zl+qugC5VyuK8vw01ShTracy2S3G5KUWv48ULmsEcXmuxyAq58XDCM9ByjMkLZJi+v0T02GGbt0mv%2fq151DxkMZsaf5ZXfJ7tJ9pnH9EPZZx9+TmpKCb1TPsYF32nJ5+b7Q5xY8UiU1w%2fp4foJbmbFyLz6S7pbqyEyqEW0MfwYojwC%2flU%3d~-1; bm_lso=9BBD76E52EA2D2947CC4FFB91D23FF273B500A8137E1C24504971C1F6224EFE6~YAAQp/naF7rilMihAQAAuHR54wk4vOXh6KxslwfZnlrJXROYHLiMB02pEp3ruqOIMrz7sw7gu07dJo+KrUjh8Lpw4gZ2RRGab0DBWoBp9ExBN3WtcENJF88O1IjwRwK9lLjvP8uJ9yNGZEDH1H+fc+MsUO4jThMJgbPRevUuEYx7eaqJmrWfZpNg1Pxemx1KkHQ6AYQVNQm6iOEofkdlMp4qlBwJYyZ7v9Px70Vv3SVCF4ny8/NQmxYnQ71sYApYBMasrf4uBCRUv8VhAWD6m7JjU4TsA16DGi6qDGrvg/ung/T/aMd7AwGC18QfNY++HaGXZ27BwWEpIuAAs6DVg6B+fzKoRblfob/5y3IbAYf98m1mEGBwOhxIXO1LeiceTU0UIyVnwuffH3zHHc8A7Pp4j1NcLS3hKmdD0GZiOQB38eml2Xrkpzrk5fXO3z8U4CkpnR2Ch9xiE2i872Z/O30ae/fGJ2vHXWac0Cqff8aT~3~1794817752615; _abck=20E3EEE906C4D4CF4C197A940EF9E3DE~-1~YAAQp/naF/eLlcihAQAAsrp74xDfiqU00c5z5K1Ib9bJsxCWZeVjb9KeNBC216pwUUgxwd1FgiFxbbFg4AFs4nh2kjVHrOo2KefEC5KGWfkg2mfDEzazaN1i30jee1l5D/bJxuLdF/O57xoEERpc/b6++9Pobjdf808Ke/wo5OUR8UiDJBDlGrxW9UpfARqnoQlXC40fCC1n1b0N3xbW349Y3fd+1xj2ghu+SUUaaQdHyzFikBDBDQJYiX6tCtja1B3NIWVtHiHWHTQD35lxe+dPut+EI7xou5y9CQo7fyQ9mwfLmG/Pf+Ul3VHOkiBM+lwvDhQJX//QUwxmPxg5QB8aYCmbuxb9TjQfeUDJJDECFICVOnEyEgVRv3p/oD/tliPAY3k2AwASXF1jHNpbovC3WY2Ar3d+/ApMXVoY0Pp5a3TQgTK7rxaF74WRCwgQYAqPbbSr1MsJV2AhfNuufrDm89PYDtQsxe3YpNn8sDPJ2A6297QeeB30AN/0bRSaYWAkIFy2Jf9MWN2HmHJqg/Z2m5Wiq2F3Zhyc4Wsf6WHwGNdQnOePD/eGLRuYHEK5NusDSswgeJXOIcRYc/X38Wr9tRtJhVP8w2h0kqWgvxTfxm/yhYRAi8QaqXKCuT/hwCGVs2G5rRghHO0TL3WKFs0sLXSfMyFhWjsPBpE0kM6A0VkEoc5aYcnGlCcxD3KAuuopxKijBea88u0reu1B5p05iT5IP1gfYo3iRSHJdWX31NatQbWfXsx/nTfWkU9CV6Qk1xRQ5e4kRcV/lgzygKzJQwvIk2Rbm7EKWNKiFFZiuRqvjcK6u1N5z3gg3vYOWJ64bMlzl2RPDToRYICpkWCqpVtrnwKVxT4kOdAjvV98FoTzkJhJOeCRcsQDFF4z31vpNBZAJFebcQs8PCGpIyW7JEtaXoQ/+AX7x6DYGPI19pncIAXSxhWKwt+3BUGv7cWm2Q58okJjF9dgUrVCRB5rg0WZvIPl5L5IxdN5Qb232n0KUezwPmB90KRDr6BBV+2FfqGLPtL6Rs2WeyAwoTMm52QC51+brbxuCGkYM8pngr2DL0YdFnJBLqpFCFlpfbFaixFv8bqWXRzwyog9WpAqEsU8uI86zpKxxI3mieTRcrF/smEQLiy7zwlllLcIp8WcfNKuZJjHm3+6eI4/KwUmazCPPg0n6L06ArlQVYn039rqXuSk~0~-1~-1~AAQAAAAG%2f%2f%2f%2f%2f7hQlh66QRCAAUzzlQtjplZXQaigveKT7M6U3Q+6267iIfx72aIyDNOAD8NA+2zl+qugC5VyuK8vw01ShTracy2S3G5KUWv48ULmsEcXmuxyAq58XDCM9ByjMkLZJi+v0T02GGbt0mv%2fq151DxkMZsaf5ZXfJ7tJ9pnH9EPZZx9+TmpKCb1TPsYF32nJ5+b7Q5xY8UiU1w%2fp4foJbmbFyLz6S7pbqyEyqEW0MfwYojwC%2flU%3d~-1; bm_s=YAAQp/naF/iLlcihAQAAs7p74waqN2+03866sdeRwgZtvFAxrZQbzGO2qm7oVeLk2FsLKrd5JjmIwKHAKcNJzrJNkTUKU/GkwY3NWWjb6Sa2rZZEInw9QEZS3y+UkCcaXkvvPyVaFavJXcg0wMiiOWmdMAMCdfDfsJSBPsmipnDXEzMOFWnqRRR7gCsfAYWraX0c28XxyGddh8FwvDRBUSpLmPMh2kQwi5EmUI0NEK7fYIbtNt3fcZUHem7lVkL7FethfFdYPXDSx/W78AnwPRUZyXMdS7Y0MSJjLw3pLDakyEy4OI+O881LJG0sS8B/Bl1AgHtYJlBwj7xA5MMnbs7huIBdlWqmuQBxtVTvLkTaklUUxbqFYeMSU2Q7jnYwimdz2Hwe7k9lq+UDQ4kT/n4E7Y7n/HFQNrZyeBD6izaMsYEo8Xz3kqBS2klfozWlkHjE757Dq6xZ7KN9g5gdz9YUXB7IUiG0/qTSsjcL0HdKWdsEml+axRPfemU1Pfim00O/vkQvmPIRueN2xUApcNb1LnQvNI36aAxJbVWXd64dcotZEYMLRlriZ9n/Bc87E3t17h5dS39aL5zp66YkZVlJt0gb3O+aDuFW0FQdoYTDlF/l2E4t7moWh7MFnLoeYfijnIEmwd+VBc8LrLFH/r2j864PzQJ/+VgxCj5DgMJ3vjP39WsIjqeCHrvCurUuHV52dyzHG0LJ1pXCbzWYUG/JYp5uo7xKT/nJoZ4Rlh5UHZE=; bm_sz=A465F5E9CAA1AAA0A9F937EF00C5166C~YAAQp/naF/mLlcihAQAAs7p74wGsYHRLbZ1R/JP6Q/Vk/SdkWUNnr2JHfJL/bJSWuEdkAyNBWYNop3smRlh6zX0yDwYIlHUpRQHbTpLEKmCPAGYzMvLVOKmMDKIqijrWb9qaMce2EORRU4/XFEtTEh8okV4rsjFXXdZtT4gk/KEX0xXU/xsVRc2u68Jp7QDoQ2pSBkvkNKyVlk7PHlyC53MYr4SNPU51YNhrcLEt+gepP7+cFLLEuupw4ECAfUy1W5n1Yu5gvG1qSRDjnJX4TWj7VqZGKlOeNCZ1eNH+f0IPPIyfl+9eocabt0qzvJmzoxG73Q/+Z+PvnJJ8hHBff7ZGZKR5CxM0zof1mRlj6Zc9Ld1UQy96cu06zNslTjBBIoUcWk2HRPBj0CN5zHR10Ys/893YaDIKyWqCYxVv+ZdFbkpkKFAZgvEu07PCfN5i89TyJy0RBUcXuQcMXrzeuwd3CzGMIDgUafTy/GNRM4k2/x/0hjmvG/UFj8bZNTEtywsmq3BYRzVgRve089B5605cb5MfbK+gJUgYgZ+ATdNWqcRCxVUFBOgkyXH8c7WXVFCBdna3Mn4I17Q=~3356738~3228982; cart_api=v2'
+  'Cookie': 'cart_api=v2; common.mw_sellerflex.enabled=true; __privaci_latest_published_version={"v":10,"sync":0,"kn":"","cid":0}; __privaci_cookie_consent_uuid=892b288d-b4ac-46ef-a2ce-3aba9ac8388f:4,05923948-9e4d-4706-8a48-e390632c991d:4; __privaci_cookie_consent_generated=05923948-9e4d-4706-8a48-e390632c991d:4; __privaci_cookie_consents={"ts":1793962667,"consents":{"249":1,"250":1,"251":1,"252":1},"location":"GJ#IN","lang":"en","gpcInBrowserOnConsent":false,"gpcStatusInPortalOnConsent":false,"status":"record-consent-success","implicit_consent":false,"ct":3,"gcm":{"1":1,"2":1,"3":1,"4":1,"5":1,"6":1,"7":1}}; posInfo=nonfood=099_Zone01,BULK=072_Zone01,food=072_Zone01,QCOMM=072_Zone01,express=003_Zone01,QELEC=003_Zone01,QMKP=F04_Zone01,QMKP=F01_Zone04; posInfo2=nonfood=099_Zone01,BULK=072_Zone01,food=072_Zone01,QCOMM=072_Zone01,express=003_Zone01,QELEC=003_Zone01,QMKP=F04_Zone01|F01_Zone04; emirate-code=DUBAI; selectedTabData={"selectedTabId":"80","productType":"ANY","serviceTypes":"SLOTTED|DEFAULT|MKP_GLOBAL|QMKP|QELEC|DIGITAL","pagePath":"New_homepage_standard_June_2025","pageType":"Homepage","pageId":"4044","pageUid":"Scheduled"}; tabInfo=SLOTTED|DEFAULT|MKP_GLOBAL|QMKP|QELEC|DIGITAL#ANY,EXPRESS|QELEC|QMKP|DIGITAL#ANY,QCOMM|DIGITAL#ANY,BULK#ANY; mafuae-preferred-delivery-area=DubaiFestivalCity-Dubai; maf-session-id=B0CEDE29-32FE-4D51-ACB8-B5E62BA13370; device-id=40ff88317e022fbb14c2dfba0ed9246f; future-express-delivery=false; gtoken=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6IjI1NmI4NjFjNDc1MzljZWZiNjg5NTY0YTdjYTc2NmVkIn0.eyJpc3MiOiJodHRwczovL2F1dGgtbWFuYWdlci5tYWZyc2VydmljZXMuY29tIiwic3ViIjoiZ3Vlc3R8N2U4ZWM3MTNmNWJjYmQ3NDRiNzVmMmViYmUwNDI3NTkiLCJhdWQiOiJ1cm46bWFmOnJlc291cmNlOnBsYXRmb3JtIiwidWlkIjoiN2U4ZWM3MTNmNWJjYmQ3NDRiNzVmMmViYmUwNDI3NTkiLCJqdGkiOiJjMDBkMjRhMi04Yzc3LTRhZGYtYjQzYS1iZDkyZDZhMGRlNDAiLCJpYXQiOjE3OTQ4ODE1NjgsImV4cCI6MTc5NDg4NTE2OH0.FGEKts0_0zYWh-n9fw5785Wq5MGfY7aGO1gu6tMm7DK_gomykPH_a2lI67207WHpmJRV2KJ87PZhIjbBhEo3wrMNtaP12Nd42a2JS8XVff7vo50OeGYBL1reowm3qy51JVZza5pv1g5BwInNY4TsanKmm_jiBTtOXhUMNcoo6dzYymTcDu9iUjObPsXntFHK9agG3LMU18XVN4dyY62mWOOHC6FcxpBwjh8Mbow2Zvf09H-8kaBPctsAUxotXS_ZMCmhxrXHJliENuk5ug_pO4_VaY3mIFJqud7LcjMzhgla84OdppuAMgcKJrAouaJdrzEI6Ql39s6Myftl4s8x3A; guid=7e8ec713f5bcbd744b75f2ebbe042759; storeInfo=mafuae|en|AED; AKA_A2=A; bm_mi=D899BF440A71E8F73F5BA978FDDAE050~YAAQxPQ3F85UNMKhAQAAGRFT5wG5QI6AGCLkBdft+lF3SjvwRjODO8hWjlBbD4FE6nU1SwXGZSV7fBnPZAsT3ze7K5AuPTIXvjYNBcI4GsQdwSKODzuBLpXYR2p3oUu66vXt+gWak904ik6x6wGcAmDscCeODpC2qo3F8VbJq0chY24jZDgaBp+tgb4YsON0/N9fNYLxSB2pXBow4yYL0xxmvICVQ7yxnM4XG/JPUDWoKMd0O2fjH3wnYBpugSH3HknVv4q2Mmxbvj7W5GY/vBf4Brz84l1+vPdss07QokInnf7IIS8o5aeITanHnrBfEdnONudew0m0cvmvkR9YJ9BroOFQJkgGMsWJdTS2+3EZOyCa9pASM8GsOQluXPUtPpDlIqyfDcY=~1; bm_sv=7987F3B6EB71A8CEFC6380020B8B9BCC~YAAQxPQ3F39VNMKhAQAACz9T5wF4ZcAfLqiGr5CLdGxhoA9oTEiH8EWFAs4fi8q2twHfFhZRfn5MvyonBvcsmLPuPMIZKjDlvQJYdwWzRJBeuMf251lT96gCrBxLIHfRGLdnpHxmReYeqrUrOJouhfzv3vZ/oFc0ee+SaOKbc5geaGf+yRbhLzI9sYIkbqCQe2GbPBjF//eSFxbcQ7t4z+V2gJ1VE5eYNBCUcIPHXT8QSbJ2Fm2BE2SS/r2G74YavL8x4Rm7LA==~1; ak_bmsc=1C1825D4C0078D9FE1D47FEB720E44D6~000000000000000000000000000000~YAAQxPQ3F9VWNMKhAQAAJZdT5wEtbJ3LTS1ef1KLHwGCbmwjNWZZ+aTBMaHYAE6ImQEe2g797FCRJwb6O0WTMLM1brrHjHTCT1wxQ9VacycD40mvicE32L44qW09H6ZpjXAFzS8i3x7JEZoj3YtZsmTIB9SE0kPx39HjEU62m7zHTzV17Q8tYV7sUlUUSm/TcNBF/eHzU3vRgDhbGBtaVGl13azcrliJg71wjCtdF0vlt3YSlee+IiLeJtsa0+GpbQJbKidF78lquN9nkVc5xeNFnbdzHEznubQFGEWWW8AEsXgLDIsFCyvFjIegPrW73obbN0++fp9gkSi8RqP2lqB8TU5a9OKi2yZsC779+Ej89OV5OgWR0N1OJjqqAjqSfHy1tChyth44eRG1MtQ1Mav/F7bGZH2X+LSZb7rw7/x4rBG4Jl3rjwH5A/gX8tt1keadxv3jDHjs+Dft3NRM1NQ01Muk71n+9aJu+FVoNqbP/PtaLcPwEs4nFz9wzw05esXeOor3exKRJ/vlY8a7FXqIsvI=; bm_so=AA8133C93EF0708AFD52E5954507115FF5EAF530B46A7570693530DE7DF77E52~YAAQxPQ3F9dWNMKhAQAAJZdT5wkhutZ+yb7wD/RnK1v5ZcPShm6b9dKu6p76uuFxui1gvGHebuaEBlw11WjpCIGgTxPWGmpv8u09m7/FxRPuL85QaCshBOF1sjlhoBRyO4NSIQNTt/tQ6YCy2OPmU+QLRE7x/2NqAw0IZihW+vlweMOkFXNM9ttVlUL2NkIdh8UmCBb34k6gzY1MCIo6YSTUlt3A7v3olNPTldNkdItAb/C/s1PBSjEPO/C5yjQppgg0UOf2or7FRYBNtndbD+qfz6z5xwJxW/x0JL/LRQepVhudgTkw6B2LacnIioNaD+pxtEhMhjClVJGsoXHP/RlJEfTZM06WgoPXu7Y7ScRNl3DZTDDpVfNSHaHJHZNliLOQs/hLwRuiD+erlWZSB2C5lqAf14hdnON5Ox9E5K12jVVg9UFoTkBtR5Cf14nnjBGpU+bx59xWIYZmA13yl5SyfFCxPRqxvBsGC5PIWr+Do16ecHEhECobb/Hm3yr/Gy96nQu4UhM3~8; bm_lso=AA8133C93EF0708AFD52E5954507115FF5EAF530B46A7570693530DE7DF77E52~YAAQxPQ3F9dWNMKhAQAAJZdT5wkhutZ+yb7wD/RnK1v5ZcPShm6b9dKu6p76uuFxui1gvGHebuaEBlw11WjpCIGgTxPWGmpv8u09m7/FxRPuL85QaCshBOF1sjlhoBRyO4NSIQNTt/tQ6YCy2OPmU+QLRE7x/2NqAw0IZihW+vlweMOkFXNM9ttVlUL2NkIdh8UmCBb34k6gzY1MCIo6YSTUlt3A7v3olNPTldNkdItAb/C/s1PBSjEPO/C5yjQppgg0UOf2or7FRYBNtndbD+qfz6z5xwJxW/x0JL/LRQepVhudgTkw6B2LacnIioNaD+pxtEhMhjClVJGsoXHP/RlJEfTZM06WgoPXu7Y7ScRNl3DZTDDpVfNSHaHJHZNliLOQs/hLwRuiD+erlWZSB2C5lqAf14hdnON5Ox9E5K12jVVg9UFoTkBtR5Cf14nnjBGpU+bx59xWIYZmA13yl5SyfFCxPRqxvBsGC5PIWr+Do16ecHEhECobb/Hm3yr/Gy96nQu4UhM3~8~1794882379326; JSESSIONID=29242A6BE84F8FB00CA9969C32DC8726; _abck=20E3EEE906C4D4CF4C197A940EF9E3DE~0~YAAQxPQ3F1VXNMKhAQAAdsxT5xCilcRuADraH1acJns8c/Vc0XJQCk871Fgt9TD25B82ELq2+rIJlY8aAa16RWr+lR9tZMdW/74aor0EYeTYL4lCxAzhUTkKuzwWYOQw8KreJO3hrDmYdrxomGTnF10Dze8Ojp++Stpmvk8ZEkYWhgSamIY88qcXDIEYZ1SxIuq7aXucqDk2gI9JMGLYDgCREE8fvDSkcADNZkXCe6nH2zW/TMOJ669g0XmbhYV4jHRLp+BXHIA4jLbzZJteVAXsjH/jCNPo7+mcAaR+gYDHKSMZb809d4NFKU1iYh7/31+mke3QSFRSBfQR7A8+P1vLSkcEFPY1Cz5Rl4bgDGDx2nKSSiq03lcv/InKyG5N4hITpBetqWw1EgayY3INTIt5cR587V+g6CcN2lRsrkbtOesiUvEDYdEkuz1hP7LiSfOKFcCj9STr0H7YLNDQZqYxz4PREfVQ8VV3DnJjb/CXzGW6Szm0e/Oqrh534TkhgvxdnXxAueNmxXcTrjn95LqyBSYjhqg0nd1mINkzIZJNGc02qExr3+g5IOtA0KbOnwM9gcpavuCUlwk+Q5x0uK7OIqZTRjBl13dr7ezaNUGWDdBdjexNkQmdgwLX+ShN9rtYqxGuGQzSPL9I7bk/B3qNopeM33qqeGjQDSrf0wrg+WMNIoRIwleDgKpGlxVHMokfXkEJ3/YsUgvGdJmQqfOyNgiVDklObp1e9xvXUqht1OR5SsHHszj87dfniESdzDNLuKq2wKVLRORshxm84vGE1dEV34Zbb1pPW6ky2ZW6cHIg+U3LpMzk2X+aLzIg9RJRUZNSqwJAcPUG7B98U6uIkwL5hq90xfrdC3Iw4WPTHExXWuMf5HzfdptF/QuCmlX7g3KjACeJPqDE+oAF5AKlHoAUi6Wfl24fMZ0qZHluWAcwCoU/1sP9FTveTzuRq/P3hv+Z~-1~-1~-1~AAQAAAAG%2f%2f%2f%2f%2f2LzrlboIgQLpoXC84vO%2fE49cQs9MwTSs4utmIx7MlQi2XdxSEt9tzx3gkkXdfBhvOnA0Ph3Uy8bbDfh8mY2UYIxglX%2fWDrXFHg8Y74ZxeLgEHRi94TWpCd+llRRKWcht69gRaQ%3d~-1; bm_s=YAAQxPQ3F2NXNMKhAQAANs9T5wZfDY9xCwGdW/4ReP0gGdyBqHk5z5kNX4VSzoE1QtftgsI26ugoX4/BQUM5xEP0bHRrHl3lsgSJDGvkIW/D886yNAVvapc1fDUnuxPkAk2rB0wR/2rgeWwBr3I+xet4PZSCoKDhLXyjzTctCeSjn6D+wKUGx48mz2uJJP6fubNE7VQyIs4q9jjK8sTNyB3NvYxDkIHVVFnHNKvbv/XXyrbaClvSi+QMJ6e1ddkSlFWr7QIDMx82cw1BMnFGgcfviMkUEYpjB+2tU6hcuiTYoAGi4TFXiVD/GryHbZEQe+tXwjQwXOmw2pv56kr6RnxkeVtB1p6eHuaT2LapWJq6tukAugekIeAhLWqn/kOg3KqVmxj+9mNwsvm3ZMmiQI83z3gb8691Yj/OPFnuXQjJx6i6EG2MUDpiOyba6+On8mFCbGDAjpVahkWiLFoEDxJDeHkalIngHhMmjJPpQ/R5YxC2BDpYIHV8qRlcl4HhFhCWiSXmW0FuXw1vHDimAngv1PnDQrw3qfRxKGgumYJ/ittTYv6OgO4Zt968YXV9PoqvdBWsh7M5P1RTxx6PrfcuiAQ+p7v1LyE65N70wCOKaJ2w3Jri2nVGuefHlS7TFnlVUrZplLVPlHSwKKftNT92OXv/hDTcFnFTGvAy4DztDvZRwnhkVs97Zk9xfCkrwpKaMKJPEFm16GTqgummI1DfVvh+/lIhCE7L9uME+ACIRAVYI3a8bKZ22Q7t/FUVAAYc+jfTtpoXJoEiPdsn4dAvuv7m8L+zU6bUsYZcv9J86vSUU3D3H450v/N2tUM2zubqtoYp7YW0ll96WS/MgEVL3Yk8pxRP6+z9eqQzOohfvjjy+oAE5zraaqdvr6j2ldA+l4xwX6gk1PYaIGvzLBX60Wd9h98n/qf4Ri76hpc6O0ZNIFgILa/yp0hiMGr6NoONZL7hQ0curjxcgdmIkeef3c/Gqn3gFKraWIuAlqZwuRaiOZamY0xpFEub+P4R7oTb9VUwTwFP0fwBahJtb3oGS5axh872UFECDQvM2hhwIwILEshXr7GRmrlZFlFyzndyRFQzAlUIG27tuNx3/gk/WGD+zDFmy1Kdn/u+AglVTn1JMOckl7feggYSJGzD1l7a0ckztZXTOvNkjXa5ELKZpuFNrGaftcVrV9A=; bm_sz=FDBF0A048B22C74CE3F723862774240B~YAAQxPQ3F2RXNMKhAQAANs9T5wEjwf07d5F0l3sNwcjOLvD6bpF5qKH61ZWKaA4h1Ip4d6xvIx88G1joj5L6cYbvz+VCVLbshMvSnc2D1JCxMolqMVo4l19WyDLTce7ZXuxLYGMYkB/c1oLgN0qZafpo7581+j5ldSOSedvSHWwU6kby2kX6gjGww+9MCmnt0AXLEMPSLcdFspT+VxOsMQHU9LUJBkV1LWaVfBqAxAl2EZ2uncIcLKX9WBz8VDwa4fPMonRvSVXlSplkYVfSsaJ+ipRXA5n/XZ79Z4uildSkoB/8Ylc0VEB9fBsII6PmyxQxDQH35Okn9rHnpbrZ35gmsrhBKRlObkdjmTXcVSrRy0nShHKNBW7vRX1IcmsqhJxuO1JRfqbhcb07IZVRgNjwIhXe0RWcDinEbCAAsW55j6Sa6oisxliipfPt1QfNoIvlWdUgN7hSCXLb1RURuAotWGyWmM0QPSDgfKqo9t5ccxgc9r79Je1QFOVF~3616836~3228740; _abck=20E3EEE906C4D4CF4C197A940EF9E3DE~-1~YAAQxPQ3F6KxNMKhAQAADxJt5xBAXNgj1RIgygUTEevRey7pQ+XTzjrehUbYlJ2gKh5hxabqTtr8iZPRqwAibVkLGHX7EJ4lDy5ZbM/WOjZ6p063RSWlFuHmRNnVfCdCtw1eST/rqc+PEYOx8jXnBr4DrF64AAW83eUL8s/26FcbG/ZZuk+6rWG9tLYdQgPV4d7xdEh+9gIKV3l4EYUun9c3O4rOynRUVvo40sZcoXGoqkG4fol0JbDqxzX4WJ+eY0A38nspb/BB7qS6PUPuPZxYinkwB+ZUQ36c91XWIa3pFlvbTe9o1UBnJm3gJ8W/fSIZx3s1jZdHk0eXp19G5YivrLIM9Ql7W0l2ZVrLxgrPWT/uRUYgDi1p73yfoojMrl3hb/xByD0zMOuMa/L8dpffEZnBpCjZsK5v/54lHaadEdDd2EOtiO68i+QqDuNIoysx8F6V2+xiRi74ZLYLwKFBnfLQpmdy2j9glrUvz/rPVYERGUQ06M+/36WOluORDXeu6fa3xx+xo97ezawWwzR3atfRShMCdYQbdL6Mk4tuHSL79XBKtDnCDOA1P8iN5AxPbjLb/WTPIPNCnaoA4qAq6hhyNxJDftLugIa8jH2c6NAXOTlJ/gBV/PGbivn8K5KwZfYMiaXGBzhtdJjw4cGcuZi13oy0jGHfa8vWB3dS/60GypH72bGo6/AvTo1Lhach/csrocRJEm2LgstX93Adt2KQGcPyelpoS91kB3aslTP96c5M80ooqXoD4ayMsYQFyMRWCst5iSfrhy7V8ZpUzsY/XMqFN1TACugaUwwdmPGvfKDXr4FKTwPZ7FE+3+x+kG2LMa+sZzaQ2MZG+aI0wb/xykJkfTYXDBV5UvQa8HTachsFfoQdVTRTazmAPhXY3kdwjTSPcL+Bxg93dRvPYC6p+VU2vpvSQKblRKAi5uxqH5c9NGLCXeJSLDMJTK1g6lA3oXsKRmP9+dY7qK2bvgHrIGzG/YRCHtfL4bM=~0~-1~-1~AAQAAAAG%2f%2f%2f%2f%2f2LzrlboIgQLpoXC84vO%2fE49cQs9MwTSs4utmIx7MlQi2XdxSEt9tzx3gkkXdfBhvOnA0Ph3Uy8bbDfh8mY2UYIxglX%2fWDrXFHg8Y74ZxeLgEHRi94TWpCd+llRRKWcht69gRaQ%3d~-1; ak_bmsc=1C1825D4C0078D9FE1D47FEB720E44D6~000000000000000000000000000000~YAAQxPQ3F1VWNMKhAQAAO35T5wHNeMGlHWgxpX1a/VLRZMxzdXmdojI+z5r9WcTOGmLRHe1rBLz8/WRO8kiBc367Hgcz8v7o0P/B615GkfqXTG9UiYWgMDDMie3p2Xc9iCKAlFsLWV1lQ9dnJTzzxbhvlOlnTcOzO3Rj8oa98BUx0hSrAE43cezRJCYFSUrz3NoPjYPKla4jzhaTPFjpGVpP8wyXviS72NupvcO8KyGverSXPoE+O/KlIeWRWRgQ4N174e83VtMch6dvleiiXa0e4eOWY6GyUgZYi74DttmiSEBVAhE/UJTI5wvCN566GtjeYDqK8PTV4yJsasEG7freBamtyn9tTOTesO7E7mVJwuK94F6YijsBQvAJEddIaVkxPIc9NP0kr5GL31nlI5jmyP5OQGmhMVkBrKNOxVP7UY6IDlfXvjC0mSt9ezi0i22hfQDc4yhS65ou1/UiOLEWTZdug2e4gem0JWcLzFo+SMbr7A==; bm_s=YAAQxPQ3F6OxNMKhAQAADxJt5wYJ7XwMdUlpDxOypW+lkJclXRnIKGQSzZBg90Mw03Gtr4tu8OtVs+W5z4s3yUlNj14VlA3I6aZPWP5IAEw2JIQp2rshsANsSFifp4OStb4XptSt4u3tlRhs/m09oIEVFWp0+FnBSLFeDYByoc9vwQz0tqmyE+kGrB9hNn6FA4CtjJNt3NlsbyEuacNh8w75HEYx579D+YJ2U/iOJnYD1IT/xVvKbWg1GA5TlE3d6jiW6C9P2gMjJBketmWqBdYcPXNxxGmS6+g7VUDz/rhpNKfuXE8taoOJkwg4jXrspjpSQT893Cqs0LncGUwZSDoPkFtYZXRJl+JsD5cSRjeM0ugHHb2EZyq22do51vW94UT/sLylSpsEjqWqGLZkCeEtyxJxgr30/vMLYspol3gqqLIX6Ekt68N5WhPinK2dQ4VKX9rg74hyAJcUfpORFzf+uywyHrR5CyQq/P4GeTqmVM4fPc274r8ileW8jhboa/7gZPQNNcou2MVcTGtBmu1iLV9Y1G07bsL9XGU0Bv3MZXo+59vczwQ9LKBdLp+E09fZN1WZNUbCo0lfPvp8xI0UsE0iYfT37tQ4eEa4jq+ZwBNgj1bmt0CYndvHWT2mtFjc8CviyRV/2yUUtCU2Z54l/Ovy52FV3mpBmymr7eLD37RF3OOua1eSk3MD2eIQzY+JlS8adTWwS4TvL+U5092PQHn8GhJQgMhs9G367Zug1QY=; bm_sv=7987F3B6EB71A8CEFC6380020B8B9BCC~YAAQxPQ3F1gzNMKhAQAAJtdH5wG4PyIc2/m81ypnytGdh/Zc5aJYlDZhsXu8RXEJMEYfV5okE5qXCnS0aOuzKe1tgK9p++YjEavK1VdqEaYCQk00JCRxmMutnZXjKEhrSHbfHbiK+AJnkoaJlJ4Kc+tJzRsc+X7E6nnKg5vcKZcUPH9XiUfJesykWvsBfCN/W2wk6dpDg5Ny2ZzkrWOgOdXUaZ5UJcQ+N4oSKOY7SL6MLYQGDvADZlCXOUNCL4V9AcX/wi2e~1; bm_sz=FDBF0A048B22C74CE3F723862774240B~YAAQxPQ3F6SxNMKhAQAADxJt5wHl0wdET7MsPLdBnyyiK5bk5xQcL9/lTuYITj0FcGYVRtZgF/49u1kXKStjYAnbJygbEhggApyb3jXStWIQ4AxPh7Akxqd1RFQzwPYWKVeIdLGOFllscHXx/YlP+RDR1lqq2GplFvvBcdCxycnke8TCeoKP0sjGFPl/OxtjIEDLkUhiDHoIapzpY5wvPJe0SfgCakdQiYxfC7xRfjgRR/4y2GeL8KwkYyaZlYXeIlIeAyFXcCdNs62+FGi/WhHeIZ4f05jcpqOC/UvyoJx46V1q6sw/k3xbY5kfc0+DU2DSnS68GpV6Tjn746XEOv2iNRnpS2F4fLoqxoxH2oUL79Kn2RrEO9BkkdpMHsTjFqNIQ4W+owHiX9YTrlntn3zqGdbY24H7ik9mWL89UVshJWmD+ous9mBxUPl0ZGKUJwPL4szhGVn+quKaBHkM0TVM4m7NZdYz6M8na9alMajcR2bpRkLS5rBv1e03th66jjimwiFQ~3616836~3228740; cart_api=v2'
 }
 
-def get_offers_data(product_sku):
-  payload = json.dumps({
-    "screen": "PDP",
-    "sku": product_sku
-  })
+with CarrefourDB() as db:
+    products = db.execute_query(
+        "select * from pdp where offers is NULL or offers = '' or offers = 'null'"
+    )
 
-  response = requests.request("POST", url, headers=headers, data=payload)
 
-  if response.status_code != 200:
-    return {
-      "message": f"not a valid response {response.status_code}",
-      "text": response.text
-    }
-  
-  voucher_data = []
-  if "componentDTO" in response.text:
-    json_data = response.json()
-    if json_data:
-      vouchers = json_data.get('data', {}).get('componentDTO',{}).get('applicableVoucher', {}).get('vouchers', [])
-      for voucher in vouchers:
-        voucher_data.append({
-          "title": voucher.get('title'),
-          "code": voucher.get('voucherCode'),
-          "term_and_condition": voucher.get('termsAndConditions', {}).get('points', [])
-        })
-  
-    return voucher_data
+def get_offers_data(product_id):
+    payload = json.dumps({"screen": "PDP", "sku": product_id})
+
+    try:
+        response = requests.request("POST", url, headers=headers, data=payload, timeout=60)
+        print(response.status_code, "for", product_id)
+        print(response.content)
+
+        if response.status_code != 200:
+            return {
+                "product_id": product_id,
+                "status_code": response.status_code,
+                "response": None,
+            }
+
+        voucher_data = []
+        json_data = response.json() or {}
+        data = json_data.get("data") or {}
+        component = data.get("componentDTO") or {}
+        vouchers = (component.get("applicableVoucher") or {}).get("vouchers") or []
+
+        for voucher in vouchers:
+            voucher_data.append({
+                "title": voucher.get("title"),
+                "code": voucher.get("voucherCode"),
+                "term_and_condition": (voucher.get("termsAndConditions") or {}).get("points", []),
+            })
+
+        return {
+            "product_id": product_id,
+            "status_code": response.status_code,
+            "response": voucher_data,
+        }
+
+    except Exception as e:
+        print(f"{product_id} error: {e}")
+        return {"product_id": product_id, "status_code": None, "response": None}
+
+    finally:
+        time.sleep(10)
 
 
 if __name__ == "__main__":
-  with CarrefourDB() as db:
-    products = db.execute_query("select * from pdp where offers is NULL or offers = ''")
-  
-  for product in products:
-    get_offers_data(product.get('product_id'))
-    time.sleep(10)
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        futures = [
+            executor.submit(get_offers_data, product.get("product_id"))
+            for product in products
+        ]
 
+        for future in as_completed(futures):
+            result = future.result()
+            response = result.get("response")
+            status_code = result.get("status_code")
+            product_id = result.get("product_id")
 
+            if response:
+                with CarrefourDB() as db:
+                    db.execute_query(
+                        "UPDATE PDP set offers=%s WHERE product_id=%s",
+                        (json.dumps(response, ensure_ascii=False), product_id),
+                    )
+                    print(f"{product_id} updated....")
+            elif status_code == 200:
+                with CarrefourDB() as db:
+                    db.execute_query(
+                        "UPDATE PDP set offers=%s WHERE product_id=%s",
+                        (json.dumps([]), product_id),
+                    )
+                    print(f"{product_id} updated (no offers)....")

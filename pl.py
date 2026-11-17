@@ -119,7 +119,8 @@ for pagination in range(100):
           "other_fields": {
             "seller_name": jmespath.search('additionalAttributes.shopName', componentDTO),
             "seller_id": jmespath.search('additionalAttributes.shopId', componentDTO),
-            "brand_name": jmespath.search('analytics.brandName' ,componentDTO)
+            "brand_name": jmespath.search('analytics.brandName' ,componentDTO),
+            "offerId": jmespath.search('additionalAttributes.offerId', componentDTO)
           } 
       }
       products.append(item)
