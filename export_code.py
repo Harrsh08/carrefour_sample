@@ -102,6 +102,7 @@ def clean_description(v):
     v = re.sub(r"^[\s.,]+", "", v)       # leading stray punctuation
     # collapse punctuation runs: keep "." if any, else ","
     v = PUNCT_RUN_RE.sub(lambda m: ". " if "." in m.group() else ", ", v)
+    v = re.sub(r"[\s,]+$", "", v)        # trailing stray commas
     return re.sub(r"\s+", " ", v).strip()
 
 
@@ -172,8 +173,9 @@ df["sellers"] = df.apply(fix_sellers, axis=1)
 
 # ---------------------------------------------------------------- 4. Clean junk in every column
 df = df.apply(lambda col: col.map(clean_text))
-if "description" in df.columns:
-    df["description"] = df["description"].map(clean_description)
+for _col in ("description", "highlights"):
+    if _col in df.columns:
+        df[_col] = df[_col].map(clean_description)
 
 # null inside JSON data -> "N/A"  (e.g. "deliveryPromise": null)
 df = df.apply(lambda col: col.map(fix_json_nulls))
@@ -196,7 +198,11 @@ df.insert(0, "Sr No", range(1, len(df) + 1))
 df = df[EXPORT_COLS]
 
 # ---------------------------------------------------------------- 9. Export
-with pd.ExcelWriter(OUTPUT_FILE, engine="xlsxwriter") as writer:
+with pd.ExcelWriter(
+    OUTPUT_FILE,
+    engine="xlsxwriter",
+    engine_kwargs={"options": {"strings_to_urls": False}},   # keep URLs as plain text
+) as writer:
     df.to_excel(writer, sheet_name="Products", index=False)
 
     wb = writer.book
@@ -220,6 +226,6 @@ with pd.ExcelWriter(OUTPUT_FILE, engine="xlsxwriter") as writer:
     )
 
     ws.freeze_panes(1, 0)
-    # ws.autofilter(0, 0, len(df), len(df.columns) - 1)
+    ws.autofilter(0, 0, len(df), len(df.columns) - 1)
 
 print(f"Exported {len(df)} rows to {OUTPUT_FILE}")
