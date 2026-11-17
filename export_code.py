@@ -1,3 +1,4 @@
+import html
 import json
 import re
 
@@ -39,7 +40,6 @@ EXPORT_COLS = [
     "offers",
     "delivery_data"
 ]
-
 # Needed by the rules even if not exported (sellers fallback, product_id repair)
 HELPER_COLS = ["pl_seller_data", "product_url"]
 
@@ -86,9 +86,43 @@ LITERAL_ESC_RE = re.compile(r"\\[trn]")            # the 2-char text \t \r \n
 PUNCT_RUN_RE = re.compile(r"\s*[.,](?:\s*[.,])+")  # ". , " / ", ," / ".,."
 
 
+def unescape_html(s):
+    """&#39; -> '   &eacute; -> é   &amp; -> &   (repeated, for double-encoded text like &amp;amp;)"""
+    for _ in range(3):
+        u = html.unescape(s)
+        if u == s:
+            break
+        s = u
+    return s
+
+
+def _map_json_strings(obj, fn):
+    if isinstance(obj, str):
+        return fn(obj)
+    if isinstance(obj, dict):
+        return {k: _map_json_strings(v, fn) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_map_json_strings(v, fn) for v in obj]
+    return obj
+
+
+def unescape_value(v):
+    """Decode HTML entities. In JSON cells only the string values are decoded,
+    so a decoded quote (&quot;) can never break the JSON."""
+    s = v.lstrip()
+    if s[:1] in ("{", "["):
+        try:
+            data = json.loads(s)
+        except ValueError:
+            return unescape_html(v)
+        return json.dumps(_map_json_strings(data, unescape_html), ensure_ascii=False)
+    return unescape_html(v)
+
+
 def clean_text(v):
     if not isinstance(v, str):
         return v
+    v = unescape_value(v)                # HTML entities -> real characters
     v = LITERAL_ESC_RE.sub(" ", v)       # literal \t \r \n
     v = CONTROL_RE.sub("", v)            # junk / invisible characters
     v = re.sub(r"[\t\r\n]+", " ", v)     # real tabs / newlines
@@ -226,6 +260,6 @@ with pd.ExcelWriter(
     )
 
     ws.freeze_panes(1, 0)
-    ws.autofilter(0, 0, len(df), len(df.columns) - 1)
+    # ws.autofilter(0, 0, len(df), len(df.columns) - 1)
 
 print(f"Exported {len(df)} rows to {OUTPUT_FILE}")
