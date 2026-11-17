@@ -54,7 +54,7 @@ def fetch_data(product):
     FOLDER_PATH = './PAGESAVE'
 
     try:
-      file_path = os.path.join(FOLDER_PATH, str(product_id) + "html.gz")
+      file_path = os.path.join(FOLDER_PATH, str(product_id) + ".html.gz")
 
       with gzip.open(file_path, 'r') as f:
         html_content = f.read()
